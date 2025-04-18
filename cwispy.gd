@@ -14,8 +14,9 @@ const AUTOLOADS = [
 
 func _enter_tree() -> void:
 	for autoload in AUTOLOADS:
-		add_autoload_singleton(autoload.name, autoload.path)
-	
+		if ProjectSettings.get_setting("autoload/" + autoload.name) != "*" + autoload.path:
+			add_autoload_singleton(autoload.name, autoload.path)
+
 	if not ProjectSettings.has_setting("autoload/NetworkedInput"):
 		add_autoload_singleton("NetworkedInput", "res://addons/cwispy/singletons/networked_input.gd")
 
