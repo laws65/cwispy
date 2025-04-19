@@ -2,7 +2,7 @@ extends Node
 ## Broadcasts the world state to the clients
 ## Saves the history of the world state to a buffer
 
-
+# TODO make this a ring buffer
 var _snapshots_buffer: Array[Dictionary]
 
 
@@ -49,6 +49,7 @@ func _receive_server_snapshot(snapshot: Dictionary) -> void:
 	var player_id := multiplayer.get_unique_id()
 	var latest_inputs: Dictionary[int, int] = snapshot["latest_inputs"]
 	if latest_inputs.has(player_id):
+		print("Client: input ", latest_inputs[player_id], " was consumed on server")
 		ServerTicker.latest_consumed_player_inputs[player_id] = latest_inputs[player_id]
 	insert_snapshot_into_buffer(snapshot)
 

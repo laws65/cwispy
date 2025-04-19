@@ -1,33 +1,34 @@
 extends Node
-class_name _NetworkedInput
 
 const MAX_INPUT_BUFFER_SIZE = 10
-
+# TODO make this a ring buffer / dictionary of ring buffers
 var _input_buffer: Dictionary[int, Array]
 var _target_input_time := -1
 var _target_player_id := -1
 
 var _client_unacknowledged_serialised_inputs: Array[PackedByteArray]
 
+
+var input_implementation: INetworkedInput
+
+var input_names: Dictionary[StringName, int]
+
+
 #region Implementation details
 func _get_inputs(tick: int) -> Dictionary:
-	push_error("Unimplemented!")
-	return {}
+	return input_implementation.get_inputs(tick)
 
 
 func _get_serialised_inputs(inputs: Dictionary) -> PackedByteArray:
-	push_error("Unimplemented!")
-	return PackedByteArray()
+	return input_implementation.get_serialised_inputs(inputs)
 
 
 func _get_deserialised_inputs(bytes: PackedByteArray) -> Dictionary:
-	push_error("Unimplemented!")
-	return {}
+	return input_implementation.get_deserialised_inputs(bytes)
 
 
 func _get_predicted_input(player_id: int, tick: int) -> Dictionary:
-	push_error("Unimplemented!")
-	return {}
+	return input_implementation.get_predicted_input(player_id, tick)
 #endregion
 
 
@@ -133,8 +134,27 @@ func get_input(input_name: String, null_ret: Variant = null) -> Variant:
 	if Multiplayer.is_client():
 		return _get_inputs(_target_input_time).get(input_name, null_ret)
 
-	push_error("Trying to get an out of date input! For player " + str(_target_player_id) + " their oldest input is tick " + str(_input_buffer[_target_player_id].back()["time"]) + " but you are requesting tick " + str(_target_input_time))
+	push_error("Server error \n " if Multiplayer.is_server() else "Client error \n " + "Trying to get an out of date input! For player " + str(_target_player_id) + " their oldest input is tick " + str(_input_buffer[_target_player_id].back()["time"]) + " but you are requesting tick " + str(_target_input_time))
 	return null_ret
+
+
+func get_input_timestamp() -> int:
+	assert(_target_input_time != -1, "Target input time must be selected")
+	assert(_target_player_id != -1, "Target player must be selected")
+
+	if not _input_buffer.has(_target_player_id):
+		return -1
+
+	for i in _input_buffer[_target_player_id].size():
+		var inputs := _input_buffer[_target_player_id][i] as Dictionary
+		if inputs.is_empty():
+			# TODO figure out why the inputs here are empty
+			continue
+		var i_timestamp := inputs["time"] as int
+		if i_timestamp <= _target_input_time:
+			return i_timestamp
+
+	return -1
 
 
 func set_target_player_id(target_player_id: int) -> void:
@@ -186,3 +206,18 @@ func get_predicted_input(player_id: int, tick: int) -> Dictionary:
 func add_temp_input(player_id: int, input: Dictionary) -> void:
 	input["flag_temp"] = true
 	_add_inputs_to_buffer(input, player_id)
+
+
+func register_button(button_name: StringName, button_val: int) -> void:
+	input_names[button_name] = button_val
+
+
+func is_button_pressed(button_name: StringName) -> bool:
+	if not input_names.has(button_name):
+		print(input_names)
+		push_warning("Please register button ", button_name, "\" before using it")
+		return false
+
+	var buttons: int = get_input("buttons", 0)
+
+	return buttons & input_names[button_name] > 0

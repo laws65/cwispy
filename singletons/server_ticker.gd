@@ -50,15 +50,12 @@ func _tick_player_blob(blob: Blob, tick: int) -> void:
 	var current_tick := server_latest_player_ticks[player_id] + 1
 
 	while current_tick <= render_tick:
-		var predicted = false
-		# BUG fix this print to show the actual inptu being used, not just the latest one
-		if Synchroniser._debug_syncing:
-			print("consuming input ", latest_input_timestamp, " on tick ", current_tick, " ", predicted)
-		if NetworkedInput.has_inputs_at_time(player_id, current_tick):
-			latest_consumed_player_inputs[player_id] = current_tick
+		NetworkedInput.set_target_player(player)
+		NetworkedInput.set_time(current_tick)
+		latest_consumed_player_inputs[player_id] = NetworkedInput.get_input_timestamp()
 		if latest_input_timestamp < current_tick:
-			print("Server: missed last player input, predicting input for tick " + str(current_tick))
-			predicted = true
+			if Synchroniser._debug_syncing:
+				print("Server: missed last player input, predicting input for tick " + str(current_tick))
 			# TODO increase buffer size, to account for changes in ping, etc. so that we don't have to predict inputs consistently
 			#push_warning("Missing input on tick ", current_tick, " : ", latest_input_timestamp)
 			var predicted_input := NetworkedInput.get_predicted_input(player_id, current_tick)
@@ -66,5 +63,4 @@ func _tick_player_blob(blob: Blob, tick: int) -> void:
 
 		blob._internal_rollback_tick(Clock.fixed_delta, current_tick, true)
 		current_tick += 1
-
-	server_latest_player_ticks[player_id] = render_tick
+	latest_consumed_player_inputs[player_id] = render_tick

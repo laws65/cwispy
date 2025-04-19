@@ -8,7 +8,7 @@ var RENDER_TIME_TICK_DELAY = 1
 var client_prediction_enabled := true
 var remote_client_prediction_enabled := false
 
-var _debug_syncing := true
+var _debug_syncing := false
 
 var client_sync_exclude: Array[int] # Array of the only blob ids that won't be in _load_snapshot()
 var client_sync_include: Array[int] # Array of the only blob ids that will be synced in _load_snapshot()
@@ -25,7 +25,14 @@ func _tick(_delta: float, tick: int) -> void:
 
 func _sync_blobs() -> void:
 	if _debug_syncing:
-		print("-----NEW TICK-----------")
+		print("-----NEW TICK " , NetworkTime.tick ,"-----------")
+	# TODO the client side prediction bug is due to: the server uses player input 110 on tick 115,
+	# so the player rolls back to tick 110, but this is before the input was applied
+	# it instead should roll the player "back" to 115, as if it was tick 110
+	# So need to keep track of not only what the latest input was, but on what tick it was used
+	# the discrepancy is that the ["tick"] of the snapshot received is different to latest_received_tick
+	# will have to be careful to avoid off-by-one errors
+	#
 	# TODO fix client side prediction code
 	# TODO rewatch -> https://www.youtube.com/watch?v=W3aieHjyNvw&t=1529s&ab_channel=GameDevelopersConference
 
@@ -48,7 +55,9 @@ func _sync_blobs() -> void:
 			if latest_used_input_tick:
 				# TODO figure out if below is true \/
 				# If the server missed a player's input, we'll want to predict from an older snapshot before the input was missed
-				predict_from = min(predict_from, latest_used_input_tick)
+				predict_from = latest_used_input_tick
+			else:
+				print("Client: missing input tick from server!")
 			_client_side_predict_from(predict_from, NetworkTime.tick)
 	else:
 		_predict_tick(render_tick)
@@ -152,8 +161,6 @@ func _client_side_predict_from(from_tick: int, to_tick: int) -> void:
 	var current_tick := from_tick + 1
 	while current_tick <= to_tick:
 		_rollback_to(current_tick)
-		if _debug_syncing:
-			print("Client: predicting tick ", current_tick)
 		blob._internal_rollback_tick(NetworkTime.ticktime, current_tick, false)
 		current_tick += 1
 	client_sync_exclude.pop_back()

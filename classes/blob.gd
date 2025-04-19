@@ -22,43 +22,6 @@ func _rollback_tick(delta: float, tick: int, is_fresh: bool = true) -> void:
 	pass
 
 
-func load_spawn_data(params: Dictionary) -> void:
-	name = str(params["id"])
-
-	for prop_name in params:
-		if prop_name == "id": continue
-
-		var split := prop_name.split(":") as PackedStringArray
-		var node_path := "."
-		var node_prop := ""
-		if split.size() == 1:
-			node_prop = split[0]
-		else:
-			node_path = split[0]
-			node_prop = split[1]
-		get_node(node_path).set(node_prop, params[prop_name])
-
-
-func get_spawn_data() -> Dictionary:
-	var spawn_data := {
-		"path": scene_file_path,
-		"id": get_id(),
-	}
-
-	for prop_name in spawn_props:
-		var split := prop_name.split(":") as PackedStringArray
-		var node_path := "."
-		var node_prop := ""
-		if split.size() == 1:
-			node_prop = split[0]
-		else:
-			node_path = split[0]
-			node_prop = split[1]
-		spawn_data[prop_name] = get_node(node_path).get(node_prop)
-
-	return spawn_data
-
-
 func get_id() -> int:
 	return int(str(name))
 
@@ -136,29 +99,30 @@ func _die() -> void:
 
 
 func load_snapshot(snapshot: Dictionary) -> void:
-	for prop_name in snapshot.keys():
-		var split := prop_name.split(":") as PackedStringArray
-		var node_path := "."
-		var node_prop := ""
-		if split.size() == 1:
-			node_prop = split[0]
-		else:
-			node_path = split[0]
-			node_prop = split[1]
-		get_node(node_path).set(node_prop, snapshot[prop_name])
+	Helpers.set_node_props(self, snapshot)
 
 
 func get_snapshot() -> Dictionary:
-	var snapshot: Dictionary
-	for prop_name in snapshot_props:
-		var split := prop_name.split(":") as PackedStringArray
-		var node_path := "."
-		var node_prop := ""
-		if split.size() == 1:
-			node_prop = split[0]
-		else:
-			node_path = split[0]
-			node_prop = split[1]
-		snapshot[prop_name] = get_node(node_path).get(node_prop)
-
+	var snapshot := Helpers.get_node_props(self, snapshot_props)
 	return snapshot
+
+
+func load_spawn_data(params: Dictionary) -> void:
+	name = str(params["id"])
+	var params_copy := params.duplicate(true)
+	params_copy.erase("id")
+	Helpers.set_node_props(self, params_copy)
+
+
+func get_spawn_data() -> Dictionary:
+	var spawn_data := {
+		"path": scene_file_path,
+		"id": get_id(),
+	}
+
+	var prop_data := Helpers.get_node_props(self, spawn_props)
+	spawn_data.merge(prop_data)
+
+	print(spawn_data)
+	print("HAAHAHAHAHA")
+	return spawn_data
