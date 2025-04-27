@@ -1,6 +1,6 @@
 extends Node
 
-const MAX_INPUT_BUFFER_SIZE = 10
+const MAX_INPUT_BUFFER_SIZE = 100
 # TODO make this a ring buffer / dictionary of ring buffers
 var _input_buffer: Dictionary[int, Array]
 var _target_input_time := -1
@@ -134,7 +134,8 @@ func get_input(input_name: String, null_ret: Variant = null) -> Variant:
 	if Multiplayer.is_client():
 		return _get_inputs(_target_input_time).get(input_name, null_ret)
 
-	push_error("Server error \n " if Multiplayer.is_server() else "Client error \n " + "Trying to get an out of date input! For player " + str(_target_player_id) + " their oldest input is tick " + str(_input_buffer[_target_player_id].back()["time"]) + " but you are requesting tick " + str(_target_input_time))
+	push_error("Server error \n " if Multiplayer.is_server() else "Client error \n ")
+	push_error("Trying to get an out of date input! For player " + str(_target_player_id) + " their oldest input is tick " + str(_input_buffer[_target_player_id].back()["time"]) + " but you are requesting tick " + str(_target_input_time))
 	return null_ret
 
 
