@@ -2,46 +2,48 @@ extends Node
 ## Broadcasts the world state to the clients
 ## Saves the history of the world state to a buffer
 
-# TODO make this a ring buffer
-var _snapshots_buffer: Array[Dictionary]
+const SNAPSHOT_BUFFER_SIZE = 150
+
+
+var _snapshots_buffer := TimedBuffer.new(SNAPSHOT_BUFFER_SIZE)
+
+var _snapshot_implementation: ISnapshotManager = DefaultSnapshotImplementation.new()
 
 
 func _ready() -> void:
-	NetworkTime.after_tick.connect(func(_delta: float, tick: int):
-		if Multiplayer.is_server():
-			var snapshot := create_world_snapshot(tick)
-			insert_snapshot_into_buffer(snapshot)
-			broadcast_snapshot(snapshot)
-	)
+	NetworkTime.after_tick.connect(_after_tick)
 
 
-func create_world_snapshot(time: int) -> Dictionary:
-	var output = {
-		"blobs": {},
-		"time": time,
-		"authority": Multiplayer.is_server(),
-		"latest_inputs": ServerTicker.latest_consumed_player_inputs,
-	}
-
-	var blobs := Blob.get_blobs()
-	for blob in blobs as Array[Blob]:
-		var blob_snapshot := blob.get_snapshot()
-		output["blobs"][blob.get_id()] = blob_snapshot
-
+func _after_tick(_delta: float, tick: int) -> void:
 	if Multiplayer.is_server():
-		var player_inputs: Dictionary[int, Dictionary]
-		var players := Player.get_players()
-		for player in players:
-			var player_id := player.get_id() as int
-			var inputs = NetworkedInput.get_inputs_for_player_at_time(player_id, time)
-			player_inputs[player_id] = inputs
-		output["inputs"] = player_inputs
-
-	return output
+		_save_and_broadcast_snapshots(tick)
 
 
-func broadcast_snapshot(snapshot: Dictionary) -> void:
-	_receive_server_snapshot.rpc_id(0, snapshot)
+func _save_and_broadcast_snapshots(time: int) -> void:
+	var target_player_ids := _snapshot_implementation.get_relevant_players()
+	var snapshots_to_be_broadcast: Dictionary[int, Dictionary]
+	
+	if target_player_ids.has(0):
+		var snapshot := create_world_snapshot_for(time, 0)
+		_broadcast_snapshot_to(snapshot, 0)
+		target_player_ids.remove_at(target_player_ids.find(0))
+	
+	if target_player_ids.has(1):
+		var snapshot := create_world_snapshot_for(time, 1)
+		insert_snapshot_into_buffer(snapshot)
+		target_player_ids.remove_at(target_player_ids.find(1))
+
+	for player_id in target_player_ids:
+		var snapshot := create_world_snapshot_for(time, player_id)
+		_broadcast_snapshot_to(snapshot, player_id)
+
+
+func create_world_snapshot_for(time: int, for_player_id: int) -> Dictionary:
+	return _snapshot_implementation.create_snapshot_for_player(time, for_player_id)
+
+
+func _broadcast_snapshot_to(snapshot: Dictionary, player_id: int) -> void:
+	_receive_server_snapshot.rpc_id(player_id, snapshot)
 
 
 @rpc("unreliable", "authority")
@@ -55,44 +57,12 @@ func _receive_server_snapshot(snapshot: Dictionary) -> void:
 
 
 func get_snapshots_buffer() -> Array[Dictionary]:
-	return _snapshots_buffer
+	return _snapshots_buffer.get_inner_array()
 
 
 func insert_snapshot_into_buffer(snapshot: Dictionary) -> void:
-	# TODO write algorithm to find correct index, to prevent slowdowns for large buffer sizes
-	if Multiplayer.is_server() or not Synchroniser.client_prediction_enabled:
-		while _snapshots_buffer.size() > 20 + 1:
-			_snapshots_buffer.pop_back()
-	elif ServerTicker.latest_consumed_player_inputs.has(multiplayer.get_unique_id()):
-		var latest_used_input := ServerTicker.latest_consumed_player_inputs[multiplayer.get_unique_id()]
-		while not _snapshots_buffer.is_empty() and _snapshots_buffer.back()["time"] < latest_used_input:
-			_snapshots_buffer.pop_back()
-
-	if _snapshots_buffer.is_empty():
-		_snapshots_buffer.push_front(snapshot)
-		return
-
-	if _snapshots_buffer[0]["time"] < snapshot["time"]:
-		_snapshots_buffer.push_front(snapshot)
-		return
-
-	for i in _snapshots_buffer.size():
-		var i_snapshot_time := _snapshots_buffer[i]["time"] as int
-		if i_snapshot_time == snapshot["time"]:
-			_snapshots_buffer[i] = snapshot
-			return
-	for i in _snapshots_buffer.size():
-		var i_snapshot_time := _snapshots_buffer[i]["time"] as int
-		if snapshot["time"] > i_snapshot_time:
-			_snapshots_buffer.insert(i, snapshot)
-			return
-
-	_snapshots_buffer.push_back(snapshot)
+	_snapshots_buffer.insert(snapshot)
 
 
 func get_snapshot_at_time(time: int) -> Dictionary:
-	for snapshot in _snapshots_buffer:
-		if snapshot["time"] == time:
-			return snapshot
-
-	return {}
+	return _snapshots_buffer.retrieve(time)

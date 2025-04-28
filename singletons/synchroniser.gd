@@ -5,7 +5,7 @@ signal after_tick
 
 var RENDER_TIME_TICK_DELAY = 1
 
-var client_prediction_enabled := true
+var client_prediction_enabled := false
 var remote_client_prediction_enabled := false
 
 var _debug_syncing := false
@@ -66,15 +66,13 @@ func _sync_blobs() -> void:
 
 
 func _rollback_to(time: int) -> void:
-	var snapshots_buffer := SnapshotManager.get_snapshots_buffer()
-	for snapshot in snapshots_buffer:
-		if snapshot["time"] == time:
-			_load_snapshot(snapshot)
-			return
+	_load_snapshot(SnapshotManager.get_snapshot_at_time(time))
 
 
 func _predict_tick(render_tick: int) -> void:
+	# TODO rewrite using new snapshots buffer
 	var snapshots_buffer := SnapshotManager.get_snapshots_buffer()
+	return
 	print("Client: missing state snapshot for tick ", render_tick)
 	# otherwise find latest snapshot and simulate until render_tick
 	var recent_snapshot_before_render_tick: Dictionary = {"time":-1}
@@ -116,7 +114,7 @@ func _predict_tick(render_tick: int) -> void:
 				blob._internal_rollback_tick(NetworkTime.ticktime, simulated_render_tick, false)
 
 		if ticks_to_simulate > 1:
-			var snapshot := SnapshotManager.create_world_snapshot(simulated_render_tick)
+			var snapshot := SnapshotManager.create_world_snapshot_for(simulated_render_tick, 1)
 			SnapshotManager.insert_snapshot_into_buffer(snapshot)
 
 		ticks_to_simulate -= 1
