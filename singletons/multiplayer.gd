@@ -159,7 +159,6 @@ func server_spawn_blob(scene_path: String, params: Dictionary={}) -> Blob:
 
 @rpc("reliable")
 func _add_blob(scene_path: String, params: Dictionary={}, old: bool=false) -> void:
-	print()
 	var packed_scene := load(scene_path) as PackedScene
 	assert(packed_scene.can_instantiate())
 	var new_blob := packed_scene.instantiate() as Blob

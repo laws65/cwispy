@@ -20,7 +20,7 @@ func create_snapshot_for_player(time: int, for_player_id: int) -> Dictionary:
 		var players := Player.get_players()
 		for player in players:
 			var player_id := player.get_id() as int
-			var inputs = NetworkedInput.get_inputs_for_player_at_time(player_id, time)
+			var inputs = NetworkedInput.get_latest_inputs_for_player(player_id)
 			player_inputs[player_id] = inputs
 		output["inputs"] = player_inputs
 

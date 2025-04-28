@@ -1,11 +1,10 @@
 extends Node
 ## Ticks the world blobs, and player blobs if they have inputs
-# TODO move latest_consumed_player_inputs() code out of world state maybe? More for SOC
 
-# TODO work on getting this down to 1, on 0 ping it needs to be 2 otherwise the inputs wont exist for some rason
-var INPUT_BUFFER_SIZE = 2 # not constant
+var INPUT_BUFFER_SIZE = 1 # not constant
 var server_latest_player_ticks: Dictionary[int, int]
 
+# TODO move latest_consumed_player_inputs() code out of world state maybe? More for SOC
 var latest_consumed_player_inputs: Dictionary[int, int]
 
 
@@ -46,21 +45,22 @@ func _tick_player_blob(blob: Blob, tick: int) -> void:
 	)
 
 	var render_tick: int = tick - INPUT_BUFFER_SIZE - half_tick_rtt
-	var latest_input_timestamp := NetworkedInput.get_latest_input_timestamp(player_id)
 	var current_tick := server_latest_player_ticks[player_id] + 1
 
 	while current_tick <= render_tick:
-		NetworkedInput.set_target_player(player)
-		NetworkedInput.set_time(current_tick)
-		latest_consumed_player_inputs[player_id] = NetworkedInput.get_input_timestamp()
-		if latest_input_timestamp < current_tick:
+		var latest_input_timestamp := NetworkedInput.get_latest_input_timestamp(player_id)
+		latest_consumed_player_inputs[player_id] = latest_input_timestamp
+
+		if current_tick > latest_input_timestamp:
 			if Synchroniser._debug_syncing:
 				print("Server: missed last player input, predicting input for tick " + str(current_tick))
-			# TODO increase buffer size, to account for changes in ping, etc. so that we don't have to predict inputs consistently
+			# TODO increase buffer width, to account for changes in ping, etc. so that we don't have to predict inputs consistently
 			#push_warning("Missing input on tick ", current_tick, " : ", latest_input_timestamp)
 			var predicted_input := NetworkedInput.get_predicted_input(player_id, current_tick)
 			NetworkedInput.add_temp_input(player_id, predicted_input)
 
 		blob._internal_rollback_tick(Clock.fixed_delta, current_tick, true)
 		current_tick += 1
+
+	server_latest_player_ticks[player_id] = render_tick
 	latest_consumed_player_inputs[player_id] = render_tick

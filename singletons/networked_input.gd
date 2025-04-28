@@ -1,8 +1,7 @@
 extends Node
 
 const MAX_INPUT_BUFFER_SIZE = 100
-# TODO make this a ring buffer / dictionary of ring buffers
-var _input_buffer: Dictionary[int, Array]
+var _input_buffers: Dictionary[int, TimedBuffer]
 var _target_input_time := -1
 var _target_player_id := -1
 
@@ -40,7 +39,7 @@ func _ready() -> void:
 	)
 	Multiplayer.player_left.connect(
 		func(player: Player):
-			_input_buffer.erase(player.get_id())
+			_input_buffers.erase(player.get_id())
 	)
 
 
@@ -83,79 +82,27 @@ func _client_receive_acknowledged_inputs(acknowledged_input_timestamps: Array[in
 
 
 func _add_inputs_to_buffer(inputs: Dictionary, player_id: int) -> void:
-	if not _input_buffer.has(player_id):
-		_input_buffer[player_id] = [inputs]
+	if not _input_buffers.has(player_id):
+		_input_buffers[player_id] = TimedBuffer.new(MAX_INPUT_BUFFER_SIZE)
 		return
 
-	for i in _input_buffer[player_id].size():
-		var i_inputs: Dictionary = _input_buffer[player_id][i]
-		if i_inputs.is_empty():
-			# BUG figure out the cause of needing this check
-			continue
-		var i_timestamp := i_inputs["time"] as int
-		if inputs["time"] > i_timestamp:
-			_input_buffer[player_id].insert(i, inputs)
-			break
-
-		if (inputs["time"] == i_timestamp
-		and (i_inputs.has("flag_predicted") or i_inputs.has("flag_temp"))):
-			_input_buffer[player_id][i] = inputs
-			break
-
-		if i == _input_buffer[player_id].size() - 1:
-			_input_buffer[player_id].push_back(inputs)
-
-	if Multiplayer.is_server():
-		while (_input_buffer[player_id].size() > MAX_INPUT_BUFFER_SIZE
-		and not _input_buffer[player_id].is_empty()
-		and _input_buffer[player_id].front()["time"] - _input_buffer[player_id].back()["time"] > Engine.get_physics_ticks_per_second()
-		):
-			_input_buffer[player_id].pop_back()
+	_input_buffers[player_id].insert(inputs)
 
 
-func get_input(input_name: String, null_ret: Variant = null) -> Variant:
+func get_input(input_name: StringName, null_ret: Variant = null) -> Variant:
 	assert(_target_input_time != -1, "Target input time must be selected")
 	assert(_target_player_id != -1, "Target player must be selected")
 
-	if not _input_buffer.has(_target_player_id):
+
+	var player_input := get_inputs_for_player_at_time(_target_player_id, _target_input_time)
+	if player_input.is_empty():
 		return null_ret
 
-	for i in _input_buffer[_target_player_id].size():
-		var inputs := _input_buffer[_target_player_id][i] as Dictionary
-		if inputs.is_empty():
-			# TODO figure out why the inputs here are empty
-			continue
-		var i_timestamp := inputs["time"] as int
-		if i_timestamp <= _target_input_time:
-			assert(inputs.has(input_name), "Invalid input name " + str(input_name))
-			return inputs[input_name]
+	if not player_input.has(input_name):
+		push_warning("Invalid input ", input_name)
+		return null_ret
 
-	# TODO fix this bandaid where sometimes the client deletes their own input and can't find it, def something to do with needing rollback for high ping (therefore needing old inputs), even though they've been acknowledged? idk
-	if Multiplayer.is_client():
-		return _get_inputs(_target_input_time).get(input_name, null_ret)
-
-	push_error("Server error \n " if Multiplayer.is_server() else "Client error \n ")
-	push_error("Trying to get an out of date input! For player " + str(_target_player_id) + " their oldest input is tick " + str(_input_buffer[_target_player_id].back()["time"]) + " but you are requesting tick " + str(_target_input_time))
-	return null_ret
-
-
-func get_input_timestamp() -> int:
-	assert(_target_input_time != -1, "Target input time must be selected")
-	assert(_target_player_id != -1, "Target player must be selected")
-
-	if not _input_buffer.has(_target_player_id):
-		return -1
-
-	for i in _input_buffer[_target_player_id].size():
-		var inputs := _input_buffer[_target_player_id][i] as Dictionary
-		if inputs.is_empty():
-			# TODO figure out why the inputs here are empty
-			continue
-		var i_timestamp := inputs["time"] as int
-		if i_timestamp <= _target_input_time:
-			return i_timestamp
-
-	return -1
+	return player_input[input_name]
 
 
 func set_target_player_id(target_player_id: int) -> void:
@@ -171,25 +118,64 @@ func set_time(new_time: int) -> void:
 	_target_input_time = new_time
 
 
-func get_inputs_for_player_at_time(player_id: int, tick: int) -> Dictionary:
-	if not _input_buffer.has(player_id):
+func get_inputs_for_player_at_time(player_id: int, time: int) -> Dictionary:
+	if not _input_buffers.has(player_id):
 		return {}
 
-	for i in _input_buffer[player_id].size():
-		var inputs := _input_buffer[player_id][i] as Dictionary
-		var i_timestamp := inputs["time"] as int
-		if i_timestamp <= tick:
-			return inputs
+	var latest_timestamp := get_latest_input_timestamp(player_id)
+	if time == latest_timestamp:
+		var player_buffer := _input_buffers[player_id]
+		return player_buffer.retrieve(latest_timestamp)
+	elif time > latest_timestamp:
+		print_stack()
+		print("Trying to get input ", time, " when the latest timestamp is ", latest_timestamp)
+		#var time_strings = ""
+		#var array := _input_buffers[player_id].get_inner_array()
+		#for i in array:
+			#if i:
+				#time_strings += str(i["time"]) + ", "
+		#print(time_strings)
+		return {}
+	else:
+		var player_buffer := _input_buffers[player_id]
+		player_buffer.store_head()
+		# TODO fix this shit implementation
 
-	return {}
+		var iter := 0
+		while iter < 150:
+
+			var prev_input := player_buffer.get_previous()
+			if not prev_input.is_empty() and prev_input["time"] == time:
+				player_buffer.reset_head()
+				return prev_input
+			iter += 1
+		return {}
+
+		# TODO add warnings for when requesting a tick that is too old
 
 
 func get_latest_input_timestamp(player_id: int) -> int:
-	if _input_buffer.has(player_id):
-		var arr := _input_buffer[player_id]
-		if not arr.is_empty():
-			return arr.front()["time"]
-	return 0
+	if not _input_buffers.has(player_id):
+		return 0
+
+	var player_buffer := _input_buffers[player_id]
+	var latest_input := player_buffer.retrieve_latest()
+	if latest_input.is_empty():
+		return 0
+
+	return latest_input["time"]
+
+
+func get_latest_inputs_for_player(player_id: int) -> Dictionary:
+	if not _input_buffers.has(player_id):
+		return {}
+
+	var player_buffer := _input_buffers[player_id]
+	var latest_input := player_buffer.retrieve_latest()
+	if latest_input.is_empty():
+		return {}
+
+	return latest_input
 
 
 func has_inputs_at_time(player_id: int, tick: int) -> bool:
@@ -215,7 +201,6 @@ func register_button(button_name: StringName, button_val: int) -> void:
 
 func is_button_pressed(button_name: StringName) -> bool:
 	if not input_names.has(button_name):
-		print(input_names)
 		push_warning("Please register button ", button_name, "\" before using it")
 		return false
 

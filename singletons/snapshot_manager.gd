@@ -22,12 +22,12 @@ func _after_tick(_delta: float, tick: int) -> void:
 func _save_and_broadcast_snapshots(time: int) -> void:
 	var target_player_ids := _snapshot_implementation.get_relevant_players()
 	var snapshots_to_be_broadcast: Dictionary[int, Dictionary]
-	
+
 	if target_player_ids.has(0):
 		var snapshot := create_world_snapshot_for(time, 0)
 		_broadcast_snapshot_to(snapshot, 0)
 		target_player_ids.remove_at(target_player_ids.find(0))
-	
+
 	if target_player_ids.has(1):
 		var snapshot := create_world_snapshot_for(time, 1)
 		insert_snapshot_into_buffer(snapshot)
@@ -51,7 +51,7 @@ func _receive_server_snapshot(snapshot: Dictionary) -> void:
 	var player_id := multiplayer.get_unique_id()
 	var latest_inputs: Dictionary[int, int] = snapshot["latest_inputs"]
 	if latest_inputs.has(player_id):
-		print("Client: input ", latest_inputs[player_id], " was consumed on server")
+		#print("Client: input ", latest_inputs[player_id], " was consumed on server")
 		ServerTicker.latest_consumed_player_inputs[player_id] = latest_inputs[player_id]
 	insert_snapshot_into_buffer(snapshot)
 
