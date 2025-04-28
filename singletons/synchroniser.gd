@@ -122,7 +122,7 @@ func _predict_tick(render_tick: int) -> void:
 func _load_snapshot(snapshot: Dictionary) -> void:
 	assert(client_sync_exclude.is_empty() or client_sync_include.is_empty(), "You fucked up")
 
-	print(snapshot["time"])
+	#print(snapshot["time"])
 	for blob_id in snapshot["blobs"].keys():
 		if client_sync_include and blob_id not in client_sync_include: continue
 		if blob_id in client_sync_exclude: continue

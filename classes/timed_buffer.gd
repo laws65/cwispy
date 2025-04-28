@@ -1,6 +1,8 @@
 extends RefCounted
 class_name TimedBuffer
 
+# TODO work on preventing misses i.e. going forward once from the head, where the super old states are
+# this causes the wrong snapshot to be loaded, deswegen massive visual jumps
 
 var _size: int
 var _buffer: Array[Dictionary]
