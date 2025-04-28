@@ -9,19 +9,26 @@ var latest_consumed_player_inputs: Dictionary[int, int]
 
 
 func _ready() -> void:
-	NetworkTime.on_tick.connect(func(_delta: float, tick: int):
-		if Multiplayer.is_server():
-			_tick_world(tick)
-	)
-	Multiplayer.player_joined.connect(func(player: Player):
-		if Multiplayer.is_server():
-			server_latest_player_ticks[player.get_id()] = NetworkTime.tick
-	)
-	Multiplayer.player_left.connect(func(player: Player):
-		if Multiplayer.is_server():
-			server_latest_player_ticks.erase(player.get_id())
-			latest_consumed_player_inputs.erase(player.get_id())
-	)
+	NetworkTime.on_tick.connect(_on_tick)
+	Multiplayer.player_joined.connect(_on_player_joined)
+	Multiplayer.player_left.connect(_on_player_left)
+
+
+
+func _on_tick(_delta: int, tick: int) -> void:
+	if Multiplayer.is_server():
+		_tick_world(tick)
+
+
+func _on_player_joined(player: Player):
+	if Multiplayer.is_server():
+		server_latest_player_ticks[player.get_id()] = NetworkTime.tick
+
+
+func _on_player_left(player: Player) -> void:
+	if Multiplayer.is_server():
+		server_latest_player_ticks.erase(player.get_id())
+		latest_consumed_player_inputs.erase(player.get_id())
 
 
 func _tick_world(tick: int) -> void:
@@ -38,11 +45,7 @@ func _tick_player_blob(blob: Blob, tick: int) -> void:
 	var player := blob.get_player()
 	var player_id := player.get_id()
 
-	var rtt := player.get_rtt_msecs()
-	var half_tick_rtt: int = ceil(
-		# TODO rewrite this using NetworkTime.ticktime
-		rtt*0.5/float((1000/float(Engine.get_physics_ticks_per_second())))
-	)
+	var half_tick_rtt := CwispyHelpers.get_half_player_rtt_ticks(player)
 
 	var render_tick: int = tick - INPUT_BUFFER_SIZE - half_tick_rtt
 	var current_tick := server_latest_player_ticks[player_id] + 1

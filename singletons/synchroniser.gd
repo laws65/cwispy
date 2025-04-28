@@ -36,11 +36,7 @@ func _sync_blobs() -> void:
 	# TODO fix client side prediction code
 	# TODO rewatch -> https://www.youtube.com/watch?v=W3aieHjyNvw&t=1529s&ab_channel=GameDevelopersConference
 
-	var rtt := NetworkTime.remote_rtt * 1000
-	var half_tick_rtt: int = ceil(
-		# TODO rewrite this using NetworkTime.ticktime
-		rtt*0.5/float((1000/float(Engine.get_physics_ticks_per_second())))
-	)
+	var half_tick_rtt := CwispyHelpers.get_half_player_rtt_ticks(Multiplayer.get_my_player())
 
 	var render_tick: int = NetworkTime.tick - RENDER_TIME_TICK_DELAY - half_tick_rtt
 
@@ -126,6 +122,7 @@ func _predict_tick(render_tick: int) -> void:
 func _load_snapshot(snapshot: Dictionary) -> void:
 	assert(client_sync_exclude.is_empty() or client_sync_include.is_empty(), "You fucked up")
 
+	print(snapshot["time"])
 	for blob_id in snapshot["blobs"].keys():
 		if client_sync_include and blob_id not in client_sync_include: continue
 		if blob_id in client_sync_exclude: continue

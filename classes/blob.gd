@@ -99,11 +99,11 @@ func _die() -> void:
 
 
 func load_snapshot(snapshot: Dictionary) -> void:
-	Helpers.set_node_props(self, snapshot)
+	CwispyHelpers.set_node_props(self, snapshot)
 
 
 func get_snapshot() -> Dictionary:
-	var snapshot := Helpers.get_node_props(self, snapshot_props)
+	var snapshot := CwispyHelpers.get_node_props(self, snapshot_props)
 	return snapshot
 
 
@@ -111,7 +111,7 @@ func load_spawn_data(params: Dictionary) -> void:
 	name = str(params["id"])
 	var params_copy := params.duplicate(true)
 	params_copy.erase("id")
-	Helpers.set_node_props(self, params_copy)
+	CwispyHelpers.set_node_props(self, params_copy)
 
 
 func get_spawn_data() -> Dictionary:
@@ -120,9 +120,7 @@ func get_spawn_data() -> Dictionary:
 		"id": get_id(),
 	}
 
-	var prop_data := Helpers.get_node_props(self, spawn_props)
+	var prop_data := CwispyHelpers.get_node_props(self, spawn_props)
 	spawn_data.merge(prop_data)
 
-	print(spawn_data)
-	print("HAAHAHAHAHA")
 	return spawn_data
