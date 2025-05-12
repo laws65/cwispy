@@ -1,9 +1,8 @@
 extends RefCounted
 class_name TimedBuffer
 
-# TODO work on preventing misses i.e. going forward once from the head, where the super old states are
-# this causes the wrong snapshot to be loaded, deswegen massive visual jumps
 
+# TODO work on input misses from temp inputs from synchroniser.gd messing up everything
 var _size: int
 var _buffer: Array[Dictionary]
 var _head: int
@@ -68,6 +67,8 @@ func reset_head() -> void:
 
 func retrieve_latest() -> Dictionary:
 	var last_inserted := get_current()
+	if last_inserted.is_empty():
+		return {}
 
 	store_head()
 	while true:

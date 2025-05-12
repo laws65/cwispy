@@ -1,5 +1,6 @@
 extends Node
 class_name Smoother2D
+# TODO fix lerper being out of phase with tick loop (causes interpolation delta to be offset)
 
 @export var authority: Node2D
 @export var targets: Array[Node2D]

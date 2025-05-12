@@ -10,6 +10,7 @@ static func get_half_player_rtt_ticks(player: Player) -> int:
 	)
 	return half_tick_rtt
 
+
 static func get_node_props(node: Node, prop_names: Array[String]) -> Dictionary:
 	var out: Dictionary
 	for prop_name in prop_names:

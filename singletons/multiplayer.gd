@@ -10,9 +10,7 @@ signal server_started()
 signal blob_died(blob: Blob)
 
 
-signal before_tick()
-signal tick()
-signal after_tick()
+var _blob_owner_map := Map.new()
 
 ## Client vars
 var _data_for_server := []
@@ -50,7 +48,7 @@ func join_server(ip: String, port: int, data_for_server: Array) -> void:
 	multiplayer.connected_to_server.connect(_on_Connected_to_server)
 	multiplayer.connection_failed.connect(_on_Connection_failed)
 
-
+#region HOOKS
 func _on_Peer_connected(player_id: int) -> void:
 	print("Peer connected with id " + str(player_id))
 	unregistered_players[player_id] = []
@@ -71,7 +69,7 @@ func _on_Connected_to_server() -> void:
 
 func _on_Connection_failed() -> void:
 	print("Couldn't connect to server")
-
+#endregion
 
 @rpc("any_peer", "reliable")
 func _receive_client_data(client_data: Array) -> void:
@@ -165,15 +163,15 @@ func _add_blob(scene_path: String, params: Dictionary={}, old: bool=false) -> vo
 	new_blob.load_spawn_data(params)
 	get_blobs_parent().add_child(new_blob, true)
 
-#######################
-## Helper functions ###
-#######################
+#region HELPER FUNCS
 func get_players_parent() -> Node:
-	return get_node("/root/Main/Players")
+	return self
 
 
+var imp_get_blobs_parent: Callable
 func get_blobs_parent() -> Node:
-	return get_node("/root/Main/Game/Blobs")
+	assert(imp_get_blobs_parent, "Must set Multiplayer.imp_get_blobs_parent so the plugin knows where to spawn the blobs in the scene tree")
+	return imp_get_blobs_parent.call()
 
 
 func server_active() -> bool:
@@ -188,7 +186,6 @@ func is_client() -> bool:
 		return false
 
 	return has_local_player()
-
 
 
 func is_server() -> bool:
@@ -217,3 +214,27 @@ func has_local_player() -> bool:
 
 func has_local_blob() -> bool:
 	return Blob.is_valid_blob(get_my_blob())
+
+
+func get_player_id_for_blob_id(blob_id: int) -> int:
+	return _blob_owner_map.get_forwards(blob_id, -1)
+
+
+func get_blob_id_for_player_id(player_id: int) -> int:
+	return _blob_owner_map.get_backwards(player_id, -1)
+
+
+@rpc("authority", "reliable", "call_local")
+func set_blob_owner(blob_id: int, player_id: int) -> void:
+	print(blob_id, ' : ', player_id)
+	var old_blob_id := get_blob_id_for_player_id(player_id)
+	var old_player_id := get_player_id_for_blob_id(blob_id)
+	if old_blob_id > 0:
+		# set blob player id to -1
+		pass
+	if old_player_id > 0:
+		# set player blob id to -1
+		pass
+
+	_blob_owner_map.set_forwards(blob_id, player_id)
+#endregion

@@ -4,7 +4,6 @@ class_name Player
 signal blob_id_changed(old_id: int, new_id: int)
 
 var _username: String
-var _blob_id := -1
 
 
 func _init(data: Array) -> void:
@@ -26,28 +25,13 @@ func is_me() -> bool:
 
 func server_set_blob_id(blob_id: int) -> void:
 	assert(Multiplayer.is_server())
-	_set_blob_id.rpc_id(0, blob_id)
+	Multiplayer.set_blob_owner.rpc_id(0, blob_id, get_id())
 
 
 func server_set_blob(blob: Blob) -> void:
 	assert(Multiplayer.is_server())
 	assert(is_instance_valid(blob))
-	_set_blob_id.rpc_id(0, blob.get_id())
-
-
-@rpc("call_local", "reliable")
-func _set_blob_id(blob_id: int) -> void:
-	set_blob_id(blob_id)
-	var blob := Blob.get_blob_by_id(blob_id)
-	if blob != null:
-		blob.set_player_id(get_id())
-
-
-func set_blob_id(blob_id: int) -> void:
-	var old_id := _blob_id
-	_blob_id = blob_id
-	blob_id_changed.emit(old_id, blob_id)
-
+	server_set_blob_id(blob.get_id())
 
 ######################
 ## Helper functions ##
@@ -69,7 +53,7 @@ static func is_valid_player(player: Player) -> bool:
 
 
 func has_blob() -> bool:
-	return _blob_id != -1
+	return get_blob_id() > 0
 
 
 func get_rtt_msecs() -> int:
@@ -79,8 +63,8 @@ func get_rtt_msecs() -> int:
 func get_blob() -> Blob:
 	if not has_blob():
 		return null
-	return Blob.get_blob_by_id(_blob_id)
+	return Blob.get_blob_by_id(get_blob_id())
 
 
 func get_blob_id() -> int:
-	return _blob_id
+	return Multiplayer.get_blob_id_for_player_id(get_id())

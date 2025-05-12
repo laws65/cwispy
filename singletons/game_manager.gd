@@ -75,8 +75,10 @@ func load_map(map_path: String) -> void:
 
 
 func get_scripts_parent() -> Node:
-	return get_node("/root/Main/Scripts")
+	return self
 
 
+var imp_get_map_parent: Callable
 func get_map_parent() -> Node:
-	return get_node("/root/Main/Game/Map")
+	assert(imp_get_map_parent, "Must set GameManager.imp_get_map_parent so that the GameManager knows where to spawn the map nodes")
+	return imp_get_map_parent.call()
