@@ -24,10 +24,10 @@ func start_server(port: int=50301) -> void:
 	var err := network.create_server(port)
 
 	if err != OK:
-		print("Failed to start server with error code " + str(err))
+		Console.add_message("Failed to start server with error code " + str(err))
 		return
 
-	print("Listening on port " + str(port))
+	Console.add_message("Listening on port " + str(port))
 	multiplayer.set_multiplayer_peer(network)
 	multiplayer.peer_connected.connect(_on_Peer_connected)
 	multiplayer.peer_disconnected.connect(_on_Peer_disconnected)
@@ -41,7 +41,7 @@ func join_server(ip: String, port: int, data_for_server: Array) -> void:
 	_data_for_server = data_for_server
 
 	if err != OK:
-		print("Failed to join server with error code " + str(err))
+		Console.add_message("Failed to join server with error code " + str(err))
 		return
 
 	multiplayer.set_multiplayer_peer(network)
@@ -50,12 +50,12 @@ func join_server(ip: String, port: int, data_for_server: Array) -> void:
 
 #region HOOKS
 func _on_Peer_connected(player_id: int) -> void:
-	print("Peer connected with id " + str(player_id))
+	Console.add_message("Peer connected with id " + str(player_id))
 	unregistered_players[player_id] = []
 
 
 func _on_Peer_disconnected(player_id: int) -> void:
-	print("Peer disconnected with id " + str(player_id))
+	Console.add_message("Peer disconnected with id " + str(player_id))
 	if player_id in unregistered_players.keys():
 		unregistered_players.erase(player_id)
 	else:
@@ -63,12 +63,12 @@ func _on_Peer_disconnected(player_id: int) -> void:
 
 
 func _on_Connected_to_server() -> void:
-	print("Successfully connected to server")
+	Console.add_message("Successfully connected to server")
 	_receive_client_data.rpc_id(1, _data_for_server)
 
 
 func _on_Connection_failed() -> void:
-	print("Couldn't connect to server")
+	Console.add_message("Couldn't connect to server")
 #endregion
 
 @rpc("any_peer", "reliable")
@@ -226,7 +226,6 @@ func get_blob_id_for_player_id(player_id: int) -> int:
 
 @rpc("authority", "reliable", "call_local")
 func set_blob_owner(blob_id: int, player_id: int) -> void:
-	print(blob_id, ' : ', player_id)
 	var old_blob_id := get_blob_id_for_player_id(player_id)
 	var old_player_id := get_player_id_for_blob_id(blob_id)
 	if old_blob_id > 0:
@@ -235,6 +234,6 @@ func set_blob_owner(blob_id: int, player_id: int) -> void:
 	if old_player_id > 0:
 		# set player blob id to -1
 		pass
-
+	# TODO send signal on blob, player, old blob, old player
 	_blob_owner_map.set_forwards(blob_id, player_id)
 #endregion

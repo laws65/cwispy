@@ -6,7 +6,7 @@ signal after_tick
 var RENDER_TIME_TICK_DELAY = 1
 
 var client_prediction_enabled := false
-var remote_client_prediction_enabled := true
+var remote_client_prediction_enabled := false
 
 var _debug_syncing := false
 
@@ -26,7 +26,7 @@ func _tick(_delta: float, tick: int) -> void:
 
 func _sync_blobs() -> void:
 	if _debug_syncing:
-		print("-----NEW TICK " , NetworkTime.tick ,"-----------")
+		Console.add_message("-----NEW TICK " + str(NetworkTime.tick) + "-----------")
 	# TODO the client side prediction bug is due to: the server uses player input 110 on tick 115,
 	# so the player rolls back to tick 110, but this is before the input was applied
 	# it instead should roll the player "back" to 115, as if it was tick 110
@@ -44,7 +44,7 @@ func _sync_blobs() -> void:
 	if render_snapshot and render_snapshot["time"] == render_tick:
 		_load_snapshot(render_snapshot)
 	elif remote_client_prediction_enabled:
-		print("predicting tick")
+		Console.add_message("predicting tick")
 		_predict_tick(render_tick)
 
 
@@ -68,12 +68,12 @@ func _get_most_recent_snapshot_before_time(snapshots_buffer: Array[Dictionary], 
 func _predict_tick(render_tick: int) -> void:
 	var snapshots_buffer := SnapshotManager.get_snapshots_buffer()
 	if _debug_syncing:
-		print("Client: missing state snapshot for tick ", render_tick)
+		Console.add_message("Client: missing state snapshot for tick ", render_tick)
 
 	var recent_snapshot_before_render_tick := _get_most_recent_snapshot_before_time(snapshots_buffer, render_tick)
 
 	if recent_snapshot_before_render_tick.is_empty():
-		print("Couldn't even find snapshot, returning")
+		Console.add_message("Couldn't even find snapshot, returning")
 		return
 
 	var ticks_to_simulate := render_tick - recent_snapshot_before_render_tick["time"] as int
@@ -82,7 +82,7 @@ func _predict_tick(render_tick: int) -> void:
 
 	while ticks_to_simulate > 0:
 		if _debug_syncing:
-			print("simulating")
+			Console.add_message("simulating")
 		var simulated_render_tick: int = render_tick - ticks_to_simulate + 1
 		for blob_id in blobs_to_simulate:
 			var blob := Blob.get_blob_by_id(blob_id)
@@ -116,7 +116,7 @@ func _load_snapshot(snapshot: Dictionary) -> void:
 	assert(client_sync_exclude.is_empty() or client_sync_include.is_empty(), "You fucked up")
 
 	if _debug_syncing:
-		print("loading snapshot ", snapshot["time"])
+		Console.add_message("loading snapshot ", snapshot["time"])
 	#print(snapshot["time"])
 	for blob_id in snapshot["blobs"].keys():
 		if client_sync_include and blob_id not in client_sync_include: continue
@@ -131,7 +131,7 @@ func _load_snapshot(snapshot: Dictionary) -> void:
 
 func _client_side_predict_from(from_tick: int, to_tick: int) -> void:
 	if _debug_syncing:
-		print("Client: predicting from ", from_tick, " to ", to_tick)
+		Console.add_message("Client: predicting from " +  str(from_tick) + " to " + str(to_tick))
 	assert(from_tick <= to_tick)
 
 	if not Multiplayer.is_client(): return

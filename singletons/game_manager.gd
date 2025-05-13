@@ -23,7 +23,7 @@ func load_gamemode(path: String) -> void:
 	var err := config.load(path)
 
 	if err != OK:
-		print("Couldn't open config file with path " + str(path) + " (error code " + str(err) + ")")
+		Console.add_message("Couldn't open config file with path " + str(path) + " (error code " + str(err) + ")")
 		return
 
 	var old_gamemode_path = gamemode_path
@@ -49,7 +49,7 @@ func load_random_map() -> void:
 	var err := config.load(gamemode_path)
 
 	if err != OK:
-		print("Couldn't open config file with path " + str(gamemode_path) + " (error code " + str(err) + ")")
+		Console.add_message("Couldn't open config file with path " + str(gamemode_path) + " (error code " + str(err) + ")")
 		return
 
 	var map_pool := config.get_value("Rules", "maps") as Array

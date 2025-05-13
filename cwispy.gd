@@ -9,7 +9,8 @@ const AUTOLOADS = [
 	{name="ServerTicker", path="res://addons/cwispy/singletons/server_ticker.gd"},
 	{name="SnapshotManager", path="res://addons/cwispy/singletons/snapshot_manager.gd"},
 	{name="Synchroniser", path="res://addons/cwispy/singletons/synchroniser.gd"},
-	{name="NetworkedInput", path="res://addons/cwispy/singletons/networked_input.gd"}
+	{name="NetworkedInput", path="res://addons/cwispy/singletons/networked_input.gd"},
+	{name="Console", path="res://addons/cwispy/console/console.gd"}
 ]
 
 

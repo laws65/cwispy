@@ -6,8 +6,10 @@ class_name TimedBuffer
 var _size: int
 var _buffer: Array[Dictionary]
 var _head: int
+var _greatest: int = 0
 
 var _stored_head: int
+
 
 func _init(size: int) -> void:
 	_size = size
@@ -22,10 +24,18 @@ func insert(value: Dictionary) -> void:
 	var index: int = value[&"time"] % _size
 	_buffer[index] = value
 	_head = index
+	_greatest = max(value[&"time"], _greatest)
 
 
 func retrieve(timestamp: int) -> Dictionary:
+	assert(timestamp > 0)
+
 	var index := timestamp % _size
+	if _buffer[index] and _buffer[index]["time"] != timestamp:
+		return {}
+		#print_stack()
+		print(timestamp, " : " ,_buffer[index]["time"])
+		#print("WTF SOMETHING WRONG")
 	return _buffer[index]
 
 
@@ -66,17 +76,25 @@ func reset_head() -> void:
 
 
 func retrieve_latest() -> Dictionary:
-	var last_inserted := get_current()
-	if last_inserted.is_empty():
+	return _buffer[_greatest % _size]
+
+
+func retrieve_at_or_before(timestamp: int) -> Dictionary:
+	var index := timestamp % _size
+	var direct_element := _buffer[index]
+
+	if direct_element.is_empty():
+		# the buffer hasn't been populated yet, therefore the correct element doesn't exist yet
 		return {}
+
+	if direct_element["time"] == timestamp:
+		return direct_element
 
 	store_head()
 	while true:
-		var future_value := get_future()
-		if not future_value.is_empty() and future_value["time"] > last_inserted["time"]:
-			last_inserted = future_value
-		else:
-			break
-	reset_head()
+		var older_state := get_previous()
+		if older_state["time"] < timestamp:
+			reset_head()
+			return older_state
 
-	return last_inserted
+	return _buffer[index]

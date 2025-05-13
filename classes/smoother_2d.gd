@@ -19,6 +19,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if not enabled: return
+
 	if Multiplayer.is_server():
 		queue_free()
 		return

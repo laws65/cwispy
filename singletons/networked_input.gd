@@ -14,7 +14,7 @@ var input_names: Dictionary[StringName, int]
 
 
 #region Implementation details
-func _get_inputs(tick: int) -> Dictionary:
+func _read_inputs(tick: int) -> Dictionary:
 	return input_implementation.get_inputs(tick)
 
 
@@ -48,7 +48,7 @@ func _ready() -> void:
 ## Send all unacknowledged inputs to server
 ## Add input to own buffer for blobs to use etc.
 func _broadcast_and_save_inputs(tick: int) -> void:
-	var inputs := _get_inputs(tick)
+	var inputs := _read_inputs(tick)
 	var serialised_inputs := _get_serialised_inputs(inputs)
 	_client_unacknowledged_serialised_inputs.push_front(serialised_inputs)
 	_server_receive_unacknowledged_serialised_inputs.rpc_id(1, _client_unacknowledged_serialised_inputs)
@@ -82,17 +82,30 @@ func _client_receive_acknowledged_inputs(acknowledged_input_timestamps: Array[in
 
 
 func _add_inputs_to_buffer(inputs: Dictionary, player_id: int) -> void:
-	if not _input_buffers.has(player_id):
+	if _input_buffers.has(player_id):
+		_input_buffers[player_id].insert(inputs)
+	else:
 		_input_buffers[player_id] = TimedBuffer.new(MAX_INPUT_BUFFER_SIZE)
-		return
 
-	_input_buffers[player_id].insert(inputs)
+
+#region public interface
+func predict_and_save_input(player_id: int, tick: int) -> Dictionary:
+	var predicted_input := _get_predicted_input(player_id, tick)
+	predicted_input["time"] = tick
+	predicted_input["flag_temp"] = true
+	predicted_input["flag_predicted"] = true
+	_add_inputs_to_buffer(predicted_input, player_id)
+	return predicted_input
+
+
+func add_temp_input(player_id: int, input: Dictionary) -> void:
+	input["flag_temp"] = true
+	_add_inputs_to_buffer(input, player_id)
 
 
 func get_input(input_name: StringName, null_ret: Variant = null) -> Variant:
 	assert(_target_input_time != -1, "Target input time must be selected")
 	assert(_target_player_id != -1, "Target player must be selected")
-
 
 	var player_input := get_inputs_for_player_at_time(_target_player_id, _target_input_time)
 	if player_input.is_empty():
@@ -122,36 +135,8 @@ func get_inputs_for_player_at_time(player_id: int, time: int) -> Dictionary:
 	if not _input_buffers.has(player_id):
 		return {}
 
-	var latest_timestamp := get_latest_input_timestamp(player_id)
-	if time == latest_timestamp:
-		var player_buffer := _input_buffers[player_id]
-		return player_buffer.retrieve(latest_timestamp)
-	elif time > latest_timestamp:
-		print_stack()
-		print("Trying to get input ", time, " when the latest timestamp is ", latest_timestamp)
-		#var time_strings = ""
-		#var array := _input_buffers[player_id].get_inner_array()
-		#for i in array:
-			#if i:
-				#time_strings += str(i["time"]) + ", "
-		#print(time_strings)
-		return {}
-	else:
-		var player_buffer := _input_buffers[player_id]
-		player_buffer.store_head()
-		# TODO fix this shit implementation
-
-		var iter := 0
-		while iter < 150:
-
-			var prev_input := player_buffer.get_previous()
-			if not prev_input.is_empty() and prev_input["time"] == time:
-				player_buffer.reset_head()
-				return prev_input
-			iter += 1
-		return {}
-
-		# TODO add warnings for when requesting a tick that is too old
+	var player_buffer := _input_buffers[player_id]
+	return player_buffer.retrieve(time)
 
 
 func get_latest_input_timestamp(player_id: int) -> int:
@@ -160,10 +145,8 @@ func get_latest_input_timestamp(player_id: int) -> int:
 
 	var player_buffer := _input_buffers[player_id]
 	var latest_input := player_buffer.retrieve_latest()
-	if latest_input.is_empty():
-		return 0
 
-	return latest_input["time"]
+	return latest_input.get("time", 0)
 
 
 func get_latest_inputs_for_player(player_id: int) -> Dictionary:
@@ -172,8 +155,6 @@ func get_latest_inputs_for_player(player_id: int) -> Dictionary:
 
 	var player_buffer := _input_buffers[player_id]
 	var latest_input := player_buffer.retrieve_latest()
-	if latest_input.is_empty():
-		return {}
 
 	return latest_input
 
@@ -181,20 +162,9 @@ func get_latest_inputs_for_player(player_id: int) -> Dictionary:
 func has_inputs_at_time(player_id: int, tick: int) -> bool:
 	var inputs := get_inputs_for_player_at_time(player_id, tick)
 	return inputs and inputs["time"] == tick
+#endregion
 
-
-func get_predicted_input(player_id: int, tick: int) -> Dictionary:
-	var predicted := _get_predicted_input(player_id, tick)
-	predicted["flag_predicted"] = true
-	predicted["time"] = tick
-	return predicted
-
-
-func add_temp_input(player_id: int, input: Dictionary) -> void:
-	input["flag_temp"] = true
-	_add_inputs_to_buffer(input, player_id)
-
-
+#region Button helpers
 func register_button(button_name: StringName, button_val: int) -> void:
 	input_names[button_name] = button_val
 
@@ -207,3 +177,4 @@ func is_button_pressed(button_name: StringName) -> bool:
 	var buttons: int = get_input("buttons", 0)
 
 	return buttons & input_names[button_name] > 0
+#endregion

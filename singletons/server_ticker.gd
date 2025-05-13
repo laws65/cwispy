@@ -56,11 +56,10 @@ func _tick_player_blob(blob: Blob, tick: int) -> void:
 
 		if current_tick > latest_input_timestamp:
 			if Synchroniser._debug_syncing:
-				print("Server: missed last player input, predicting input for tick " + str(current_tick))
+				Console.add_message("Server: missed last player input, predicting input for tick " + str(current_tick))
 			# TODO increase buffer width, to account for changes in ping, etc. so that we don't have to predict inputs consistently
 			#push_warning("Missing input on tick ", current_tick, " : ", latest_input_timestamp)
-			var predicted_input := NetworkedInput.get_predicted_input(player_id, current_tick)
-			NetworkedInput.add_temp_input(player_id, predicted_input)
+			NetworkedInput.predict_and_save_input(player_id, current_tick)
 
 		blob._internal_rollback_tick(Clock.fixed_delta, current_tick, true)
 		current_tick += 1

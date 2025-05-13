@@ -1,0 +1,98 @@
+[gd_scene load_steps=2 format=3 uid="uid://b3a2p6yphcmol"]
+
+[ext_resource type="Script" uid="uid://xivrkgs24b01" path="res://addons/cwispy/console/console_display.gd" id="1_mbsuy"]
+
+[node name="Console" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_mbsuy")
+
+[node name="DarkGreyBG" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.171637, 0.171637, 0.171637, 1)
+
+[node name="Elements" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="HeaderMargin" type="MarginContainer" parent="Elements"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+
+[node name="Header" type="HBoxContainer" parent="Elements/HeaderMargin"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Elements/HeaderMargin/Header"]
+layout_mode = 2
+text = "Console"
+
+[node name="FloatRight" type="HBoxContainer" parent="Elements/HeaderMargin/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 2
+
+[node name="YMargin" type="MarginContainer" parent="Elements/HeaderMargin/Header/FloatRight"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Elements/HeaderMargin/Header/FloatRight/YMargin"]
+layout_mode = 2
+alignment = 2
+
+[node name="Button" type="Button" parent="Elements/HeaderMargin/Header/FloatRight/YMargin/HBoxContainer"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+text = "[]"
+
+[node name="Button2" type="Button" parent="Elements/HeaderMargin/Header/FloatRight/YMargin/HBoxContainer"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+text = "X"
+
+[node name="LightGreyBG" type="ColorRect" parent="Elements"]
+layout_mode = 2
+size_flags_vertical = 3
+color = Color(0.339095, 0.339095, 0.339095, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="Elements/LightGreyBG"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="TextDisplay" type="RichTextLabel" parent="Elements/LightGreyBG/MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+scroll_following = true
+
+[node name="FooterMargin" type="MarginContainer" parent="Elements"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+
+[node name="LineEdit" type="LineEdit" parent="Elements/FooterMargin"]
+layout_mode = 2
+placeholder_text = ">"

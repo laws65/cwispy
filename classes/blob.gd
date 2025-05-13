@@ -15,7 +15,8 @@ signal rollback_tick(delta: float, tick: int, is_fresh: bool)
 @export var snapshot_props: Array[String]
 @export var client_props: Array[String]
 
-
+# TODO warn for unimplemented
+# TODO add signals to sync, which the player console to hook into
 func _validate_property(property: Dictionary) -> void:
 	if property.name == &"client_props":
 		if not client_authority:
